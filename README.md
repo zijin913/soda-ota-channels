@@ -1,82 +1,64 @@
 # SODA OTA Channels
 
-> 这个目录的三个 .txt 文件是 OTA 通道的"目标版本号",由 `tools/promote.sh` 写,客户机 `ota/update.sh` 定时拉。
+> 这个 repo 的两个 `.txt` 文件是 OTA 通道的"目标版本号"。`tools/promote.sh`(在 vendor 的 SOMA 上)写它们,客户机的 `ota/update.sh` 定时拉。
 >
-> 部署方式:**用 GitHub Pages 把这个目录的内容当作静态网站**,客户机走 HTTPS 拉。
+> **托管在 GitHub Pages 上**,客户机走 HTTPS 拉。
 
-## 文件
+## 通道
 
-| 文件 | 客户机用途 | 谁更新 |
+| 文件 | 谁订 | 谁更新 |
 |---|---|---|
-| `dev.txt` | SOMA 自家机器订阅 —— CI 通过即推 | `promote.sh dev <version>` |
-| `canary.txt` | 1-2 台早期客户订阅 —— 人工晋升,canary 跑稳 ≥ 7 天 | `promote.sh canary <version>` |
-| `stable.txt` | 全员订阅 —— canary 稳定后晋升 | `promote.sh stable <version>` |
+| `dev.txt` | 只有 vendor 的 SOMA 内部测试机 | `promote.sh dev <version>` |
+| `stable.txt` | 所有外部用户(IF + 终端客户) | `promote.sh stable <version>`(dev 上 soak ≥ 7 天后) |
 
-每个文件就一行版本号,如 `0.1`。空文件表示该通道当前不发布(客户机看到空响应,update.sh 静默 skip)。
+每个文件就一行版本号,比如 `0.19`。空文件 = 这个通道当前不发布(客户机看到空响应,update.sh 静默 skip)。
 
-## 用 GitHub Pages 托管(推荐,最简)
+## 发版流程
 
-### 一次性设置
-
-1. **建一个 public repo**(不能用 private,GitHub Pages 限制),命名建议 `soda-ota-channels`:
-
-   ```bash
-   cd /tmp
-   mkdir soda-ota-channels && cd soda-ota-channels
-   git init
-   git remote add origin https://github.com/zijin913/soda-ota-channels.git
-   ```
-
-2. 把 `channels/` 目录里的 `dev.txt` / `canary.txt` / `stable.txt` 拷进来,推上去:
-
-   ```bash
-   cp ~/Library/CloudStorage/.../files/secure-robot-app/channels/{dev,canary,stable}.txt .
-   git add . && git commit -m "initial channels" && git push -u origin main
-   ```
-
-3. **去 GitHub 仓库 Settings → Pages**:
-   - Source: `Deploy from a branch`
-   - Branch: `main` / `(root)`
-   - 保存
-
-   一两分钟后 GitHub 会给你一个 URL,形如:
-   ```
-   https://zijin913.github.io/soda-ota-channels/
-   ```
-
-4. **验证**:
-   ```bash
-   curl https://zijin913.github.io/soda-ota-channels/dev.txt
-   # 应输出: 0.1
-   ```
-
-5. **改 update.sh + promote.sh 的 CHANNEL_BASE 默认值**:
-
-   ```bash
-   # 在你 macOS 上:
-   cd ~/Library/CloudStorage/.../files/secure-robot-app
-   sed -i '' "s|https://ota.example.com|https://zijin913.github.io/soda-ota-channels|g" \
-     ota/update.sh tools/promote.sh
-   ```
-
-### 日常发版本
+vendor 在 SOMA 上:
 
 ```bash
-# 在你 macOS / 任何能 git push 的机器上
-cd /path/to/soda-ota-channels   # 克隆出来一份
-./promote.sh dev 0.2            # 修改 dev.txt
-                                # promote.sh 自动 git add + commit + push
-                                # GitHub Pages 一两分钟后更新
+ssh SOMA
+cd ~/Projects/soda-bimanual
+
+# 1. build + push 镜像到 ghcr
+REGISTRY=ghcr.io/zijin913 ROBOT_VERSION=0.X docker compose build
+REGISTRY=ghcr.io/zijin913 ROBOT_VERSION=0.X docker compose push
+
+# 2. 推到 dev 通道(SOMA 内部 soak)
+./tools/promote.sh dev 0.X
+# 自动 git push 到这个 repo,GitHub Pages 1-2 分钟 rebuild
+
+# 3. soak ≥ 7 天没问题 → 推到 stable
+./tools/promote.sh stable 0.X
+# 30 分钟内所有客户机自动升级
 ```
 
-客户机的 OTA timer 下次跑(默认每小时)就会拉新版本。
+## 紧急回滚
 
-## 备选:用 S3 / 自家 nginx
+发现 stable 有严重 bug:
+
+```bash
+./tools/promote.sh stable 0.<上一版>
+```
+
+stable.txt 指回上一版本号。30 分钟内所有 stable 订阅的客户机用本机已缓存的旧镜像自动降级(不需要重新 pull)。
+
+## URL
+
+| 通道 | URL |
+|---|---|
+| dev | https://zijin913.github.io/soda-ota-channels/dev.txt |
+| stable | https://zijin913.github.io/soda-ota-channels/stable.txt |
+
+客户机 `update.sh` 默认 base URL:`https://zijin913.github.io/soda-ota-channels`,可以通过 `CHANNEL_BASE` 环境变量覆盖。
+
+## 备选托管方式
 
 如果不想用 GitHub Pages(比如内网部署,客户机访问不了 github.io):
 
-- **S3 + CloudFront**:把这三个文件传 S3 桶,通过 CloudFront 暴露 HTTPS。改 `CHANNEL_BASE` 指向 CloudFront 域名。
-- **自家 VPS + nginx / Caddy**:静态文件托管,配 HTTPS。
-- **Tailscale / 内网**:客户机若都在你 Tailscale 网络里,可以用 HTTP + 私有域名,简化证书。
+- **S3 + CloudFront**:把两个 `.txt` 文件传 S3 桶,CloudFront 暴露 HTTPS。改客户机的 `CHANNEL_BASE` 指向 CloudFront 域名。
+- **自家 VPS + nginx / Caddy**:静态文件托管 + HTTPS。
+- **Tailscale / 内网**:客户机都在 Tailscale 网络里就用 HTTP + 私有域名,免证书。
 
 通道协议本身就一行版本号,任何能 serve 静态文本的 HTTPS 端点都行。
