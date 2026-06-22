@@ -97,5 +97,18 @@ ok "install.sh ready at /tmp/install.sh"
 # ──────────────────────────────────────────────────────────────────────
 # Phase 4 — Hand off to install.sh
 # ──────────────────────────────────────────────────────────────────────
+# Re-attach stdin to /dev/tty. When this script is invoked via
+# `curl ... | bash`, the shell's stdin is the curl pipe, NOT the user's
+# terminal. install.sh has `read -r -p "..."` prompts (license path,
+# hardware confirmation, interface name, site wizard). Without the
+# /dev/tty redirect, those reads return empty immediately, silently
+# skipping interactive setup. Redirecting from /dev/tty fixes the
+# whole interactive flow with zero customer-visible noise.
 section "Handing off to install.sh"
-exec bash /tmp/install.sh
+if [[ -e /dev/tty ]]; then
+  exec bash /tmp/install.sh </dev/tty
+else
+  # No controlling terminal (rare — e.g. cron, systemd ExecStart, true CI).
+  # Run install.sh anyway; user-driven prompts will return empty defaults.
+  exec bash /tmp/install.sh
+fi
