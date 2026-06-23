@@ -79,10 +79,14 @@ if ! docker ps >/dev/null 2>&1; then
   else
     BOOTSTRAP_URL="${SODA_BOOTSTRAP_URL:-https://zijin913.github.io/soda-ota-channels/bootstrap.sh}"
     # Pass through user-set env vars to the re-execed bootstrap.
-    SODA_CHANNEL_ESC="${SODA_CHANNEL//\'/\'\\\'\'}"
-    SODA_IMAGE_ESC="${SODA_IMAGE:-}"
-    SODA_IMAGE_ESC="${SODA_IMAGE_ESC//\'/\'\\\'\'}"
-    exec sg docker -c "curl -fsSL '$BOOTSTRAP_URL' | SODA_CHANNEL='$SODA_CHANNEL_ESC' SODA_IMAGE='$SODA_IMAGE_ESC' bash" \
+    # `set -u` is on, so we MUST default every var to empty before parameter
+    # expansion — bare ${SODA_CHANNEL//...} would error if SODA_CHANNEL is
+    # unset (the common case: customer just runs curl ... | bash, no env vars).
+    _ch="${SODA_CHANNEL:-}"
+    _im="${SODA_IMAGE:-}"
+    _ch="${_ch//\'/\'\\\'\'}"
+    _im="${_im//\'/\'\\\'\'}"
+    exec sg docker -c "curl -fsSL '$BOOTSTRAP_URL' | SODA_CHANNEL='$_ch' SODA_IMAGE='$_im' bash" \
       || fail "Could not activate docker group. Log out + back in (or reboot), then re-run the bootstrap one-liner."
   fi
 fi
