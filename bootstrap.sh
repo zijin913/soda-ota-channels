@@ -60,9 +60,31 @@ if ! docker ps >/dev/null 2>&1; then
   # was started before docker group was added (so it doesn't see docker in its
   # groups), sg spawns a fresh process WITH the docker group active, with no
   # logout required. The customer never sees the chicken-and-egg confusion.
+  #
+  # Two cases for $0:
+  #   - script-file mode (bash bootstrap.sh): $0 is a real path -> re-exec by path
+  #   - curl-pipe mode (curl ... | bash):     $0 is "bash" (or "-bash") with NO
+  #                                            backing file -> we cannot re-run
+  #                                            "bash $0"; that would try to exec
+  #                                            the /usr/bin/bash ELF as a script
+  #                                            ("cannot execute binary file"). In
+  #                                            this case re-download the bootstrap
+  #                                            inside the sg subshell so the new
+  #                                            bash has docker group active AND a
+  #                                            fresh script body to read.
   todo "Activating docker group membership and continuing..."
-  exec sg docker -c "bash '$0' $*" \
-    || fail "Could not activate docker group. Log out + back in (or reboot), then re-run this command."
+  if [[ -f "$0" ]] && [[ "$(basename -- "$0")" != "bash" ]] && [[ "$(basename -- "$0")" != "-bash" ]]; then
+    exec sg docker -c "bash '$0' $*" \
+      || fail "Could not activate docker group. Log out + back in (or reboot), then re-run: bash $0"
+  else
+    BOOTSTRAP_URL="${SODA_BOOTSTRAP_URL:-https://zijin913.github.io/soda-ota-channels/bootstrap.sh}"
+    # Pass through user-set env vars to the re-execed bootstrap.
+    SODA_CHANNEL_ESC="${SODA_CHANNEL//\'/\'\\\'\'}"
+    SODA_IMAGE_ESC="${SODA_IMAGE:-}"
+    SODA_IMAGE_ESC="${SODA_IMAGE_ESC//\'/\'\\\'\'}"
+    exec sg docker -c "curl -fsSL '$BOOTSTRAP_URL' | SODA_CHANNEL='$SODA_CHANNEL_ESC' SODA_IMAGE='$SODA_IMAGE_ESC' bash" \
+      || fail "Could not activate docker group. Log out + back in (or reboot), then re-run the bootstrap one-liner."
+  fi
 fi
 
 ok "Docker reachable: $(docker --version | awk '{print $3}' | tr -d ,)"
