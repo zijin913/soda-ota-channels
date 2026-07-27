@@ -2,7 +2,7 @@
 # SODA — One-line bootstrap.
 #
 # Customer usage:
-#   curl -fsSL https://zijin913.github.io/soda-ota-channels/bootstrap.sh | bash
+#   curl -fsSL https://somarobotics.github.io/soda-ota-channels/bootstrap.sh | bash
 #
 # What this does:
 #   1. Installs Docker if missing.
@@ -32,8 +32,8 @@ fail() { printf '  %s✗%s %s\n'  "$C_RED" "$C_RST" "$1" >&2; exit 1; }
 section() { printf '\n%s═════%s %s%s%s %s═════%s\n' "$C_DIM" "$C_RST" "$C_BLD" "$1" "$C_RST" "$C_DIM" "$C_RST"; }
 
 CHANNEL="${SODA_CHANNEL:-stable}"
-CHANNEL_BASE="${SODA_CHANNEL_BASE:-https://zijin913.github.io/soda-ota-channels}"
-REGISTRY_DEFAULT="ghcr.io/zijin913"
+CHANNEL_BASE="${SODA_CHANNEL_BASE:-https://somarobotics.github.io/soda-ota-channels}"
+REGISTRY_DEFAULT="ghcr.io/somarobotics"
 RUN_USER="${SUDO_USER:-$USER}"
 
 section "SODA Bootstrap"
@@ -77,7 +77,7 @@ if ! docker ps >/dev/null 2>&1; then
     exec sg docker -c "bash '$0' $*" \
       || fail "Could not activate docker group. Log out + back in (or reboot), then re-run: bash $0"
   else
-    BOOTSTRAP_URL="${SODA_BOOTSTRAP_URL:-https://zijin913.github.io/soda-ota-channels/bootstrap.sh}"
+    BOOTSTRAP_URL="${SODA_BOOTSTRAP_URL:-https://somarobotics.github.io/soda-ota-channels/bootstrap.sh}"
     # Pass through user-set env vars to the re-execed bootstrap.
     # `set -u` is on, so we MUST default every var to empty before parameter
     # expansion — bare ${SODA_CHANNEL//...} would error if SODA_CHANNEL is

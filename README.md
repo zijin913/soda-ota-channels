@@ -22,8 +22,8 @@ ssh SOMA
 cd ~/Projects/soda-bimanual
 
 # 1. build + push 镜像到 ghcr
-REGISTRY=ghcr.io/zijin913 ROBOT_VERSION=0.X docker compose build
-REGISTRY=ghcr.io/zijin913 ROBOT_VERSION=0.X docker compose push
+REGISTRY=ghcr.io/somarobotics ROBOT_VERSION=0.X docker compose build
+REGISTRY=ghcr.io/somarobotics ROBOT_VERSION=0.X docker compose push
 
 # 2. 推到 dev 通道(SOMA 内部 soak)
 ./tools/promote.sh dev 0.X
@@ -48,10 +48,10 @@ stable.txt 指回上一版本号。30 分钟内所有 stable 订阅的客户机�
 
 | 通道 | URL |
 |---|---|
-| dev | https://zijin913.github.io/soda-ota-channels/dev.txt |
-| stable | https://zijin913.github.io/soda-ota-channels/stable.txt |
+| dev | https://somarobotics.github.io/soda-ota-channels/dev.txt |
+| stable | https://somarobotics.github.io/soda-ota-channels/stable.txt |
 
-客户机 `update.sh` 默认 base URL:`https://zijin913.github.io/soda-ota-channels`,可以通过 `CHANNEL_BASE` 环境变量覆盖。
+客户机 `update.sh` 默认 base URL:`https://somarobotics.github.io/soda-ota-channels`,可以通过 `CHANNEL_BASE` 环境变量覆盖。
 
 ## 备选托管方式
 
