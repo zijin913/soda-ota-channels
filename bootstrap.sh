@@ -103,7 +103,7 @@ else
   todo "Resolving version from channel $CHANNEL..."
   VERSION="$(curl -fsSL -4 --max-time 10 "$CHANNEL_BASE/$CHANNEL.txt" | tr -d '[:space:]')"
   [[ -n "$VERSION" ]] || fail "Could not reach $CHANNEL_BASE/$CHANNEL.txt — check network"
-  IMAGE="$REGISTRY_DEFAULT/robot-app:$VERSION"
+  IMAGE="$REGISTRY_DEFAULT/soda-app:$VERSION"
   ok "Channel says: $VERSION  →  $IMAGE"
 fi
 
